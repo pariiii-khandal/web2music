@@ -16,13 +16,13 @@ function looksLikeBoilerplate(el) {
 }
 
 function textDensityScore(el) {
-  const text = el.innerText || '';
+  const text = el.innerText || el.textContent || '';
   const textLength = text.trim().length;
   if (textLength === 0) return 0;
 
   const tagCount = el.getElementsByTagName('*').length || 1;
   const linkTextLength = Array.from(el.getElementsByTagName('a'))
-    .reduce((sum, a) => sum + (a.innerText || '').length, 0);
+    .reduce((sum, a) => sum + (a.innerText || a.textContent || '').length, 0);
 
   const linkDensity = linkTextLength / textLength;
   const density = textLength / tagCount;
@@ -68,13 +68,7 @@ function normalizeWhitespace(text) {
     .trim();
 }
 
-/**
- * extractMetadata \u2014 cheap DOM reads Feature A owns: the meta description
- * (with og:description / twitter:description fallbacks) and the document
- * language. Both are required inputs for Feature B's B1 (analyseMetadata).
- * @param {Document} doc
- * @returns {{ description: string, lang: string }}
- */
+
 function extractMetadata(doc = document) {
   const pick = (selector, attr = 'content') => {
     const el = doc.querySelector(selector);
@@ -88,8 +82,6 @@ function extractMetadata(doc = document) {
     pick('meta[name="twitter:description"]') ||
     '';
 
-  // documentElement.lang \u2192 <html lang> ; fall back to a content-language meta
-  // tag, then default to English.
   const htmlLang =
     (doc.documentElement && doc.documentElement.getAttribute('lang')) || '';
   const metaLang = pick('meta[http-equiv="content-language"]');
@@ -103,6 +95,17 @@ function extractMetadata(doc = document) {
 function extractPageText(doc = document) {
   const title = normalizeWhitespace(doc.title || '');
   const { description, lang } = extractMetadata(doc);
+
+  if (!doc.body) {
+    return {
+      title,
+      mainText: '',
+      description,
+      lang,
+      wordCount: 0,
+      url: doc.location ? doc.location.href : ''
+    };
+  }
 
   const clone = doc.body.cloneNode(true);
   BOILERPLATE_TAGS.forEach(tag => {
